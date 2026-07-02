@@ -1,0 +1,35 @@
+# requirements.txt — FMA Hip-Hop Detector (Sprint 17 Ch5)
+#
+# VERIFIED pins: resolved and installed clean on Python 3.13.9 (2026-07-01).
+# These are direct dependencies only. The full transitive lock is in
+# requirements.lock.txt (pip freeze) — that's the exact reproducible snapshot;
+# CI can install from either. Regenerate the lock with:
+#   pip install -r requirements.txt && pip freeze > requirements.lock.txt
+#
+# Why these versions and not an older snapshot: Python 3.13 forces a 2025-era
+# stack. numpy <2.1, mlflow <2.18 (caps pyarrow<18), and evidently 0.4.x all
+# predate 3.13 and have no 3.13 wheels, so they source-build and fail. The set
+# below is the latest mutually-compatible set that ships 3.13 wheels.
+
+# --- data handling ---
+pandas==2.3.3
+numpy==2.5.0           # 2.x REQUIRED on 3.13 (1.x has no 3.13 wheel); evidently 0.7 is built for numpy 2
+
+# --- modeling ---
+scikit-learn==1.9.0
+
+# --- MLOps stack ---
+dvc==3.67.1
+mlflow==3.14.0         # 3.x (not 2.17): 2.x caps pyarrow<18, which has no 3.13 wheel. Note: 3.x model-logging API differs (Phase 3).
+
+# --- drift monitoring (pin-sensitive; do not float) ---
+evidently==0.7.21      # 0.7.x, NOT 0.4.x. New Report/Dataset API — Phase 7's monitor_drift.py must target this. Confirm before writing it.
+
+# --- data fetch ---
+requests==2.34.2
+
+# --- config parsing (Phase 3 config-driven training; brief grades YAML at Step 5) ---
+PyYAML==6.0.3
+
+# --- testing ---
+pytest==9.1.1
