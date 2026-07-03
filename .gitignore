@@ -21,7 +21,14 @@ htmlcov/
 # --- DVC (track pointers, not the cache or pulled data) ---
 /.dvc/cache/
 /.dvc/tmp/
-/data/
+
+# --- Data ---
+# raw/ is the 342 MiB metadata zip + extracted CSVs: NOT DVC-tracked, regenerated
+# from the pinned SWITCH URL (see download_data.py + README). Keep it out of git.
+/data/raw/
+# prepared/ IS DVC-tracked. Do NOT blanket-ignore it here: `dvc add` writes its own
+# data/.gitignore for the parquet blobs and leaves data/prepared.dvc (the pointer)
+# trackable. Both of those must reach git for the data version to be reproducible.
 
 # --- MLflow (local tracking store + artifacts) ---
 mlruns/

@@ -118,8 +118,66 @@ def engineer_categoricals(tracks_small: pd.DataFrame) -> pd.DataFrame:
         ("track", "bit_rate") into bands instead. (Check the NaN rate and decide.)
     These give the pipeline its required mixed numeric/categorical types.
     """
-    raise NotImplementedError("TODO(Justin): engineer license_family + release_era")
+    
+    license_series = tracks_small[("track", "license")].copy()
 
+    license_series = license_series.str.lower().str.strip().str.replace(" ", "")  # normalize case and whitespace
+
+    def bucket_license(s: str) -> str:
+        """Map one normalized license string to its CC family."""
+
+        if pd.isna(s):
+            return "other"
+    
+        # most-specific first, broadest last:
+        if "cc0" in s or "publicdomain" in s:                     # cc0 / publicdomain
+            return "CC0/public-domain"
+    
+        if "noncommercial" in s and "noderiv" in s:                    # NC + ND
+            return "CC-BY-NC-ND"
+    
+        if "noncommercial" in s and "sharealike" in s:                    # NC + SA
+            return "CC-BY-NC-SA"
+
+        if "noncommercial" in s:                            # NC only
+            return "CC-BY-NC"
+    
+        if "noderiv" in s:                            # ND only
+            return "CC-BY-ND"
+    
+        if "sharealike" in s:                            # SA only
+            return "CC-BY-SA"
+    
+        if "attribution" in s:                            # attribution only
+            return "CC-BY"
+        return "other"
+
+ 
+
+    license_series = license_series.apply(bucket_license)
+
+
+
+    release_series = tracks_small[("album", "date_released")].copy()
+
+    release_series = pd.to_datetime(release_series, errors='coerce')
+
+    release_era_bins = [pd.Timestamp('1900-01-01'), pd.Timestamp('2000-01-01'),
+                    pd.Timestamp('2010-01-01'), pd.Timestamp('2100-01-01')]   # 4 edges -> 3 intervals
+    release_era_labels = ["pre_2000", "2000s", "2010s+"]
+
+    release_series = pd.cut(release_series, bins=release_era_bins, labels=release_era_labels, right=False)
+
+    release_series = release_series.astype(object).fillna("unknown")
+
+    categoricals_df = pd.DataFrame({
+        'license_family': license_series,
+        'release_era': release_series
+    }, index=tracks_small.index) 
+
+    return categoricals_df   
+
+    
 
 # --------------------------------------------------------------------------- #
 # 5. Assemble, dedupe, inject missingness                          [plumbing]  #
@@ -143,21 +201,26 @@ def inject_missing(X: pd.DataFrame, numeric_cols: list[str], seed: int,
 # --------------------------------------------------------------------------- #
 # 6. Within-genre listens split                               TODO(Justin)     #
 #    THE GATE CONCEPT — save for last.                                          #
-# --------------------------------------------------------------------------- #
 def assign_within_genre_split(tracks_small: pd.DataFrame) -> pd.Series:
     """Return a Series of "reference"/"current" per track_id.
 
     Spec (the crux): split ("track", "listens") at the median WITHIN EACH
     genre (group by ("track", "genre_top")). reference = the more-played half
-    of every genre, current = the less-played half.
-
-    Why within-genre and not a global listens split: a global split would
-    starve Hip-Hop positives in one window and let the genre mix shift, so
-    Evidently would measure genre composition change, not popularity effect.
-    Splitting inside each genre holds the genre mix constant and guarantees
-    ~500 Hip-Hop in each window -> one honest covariate-shift question.
+    of every genre, current = the less-played half. A global split would let
+    the genre mix shift between windows and starve Hip-Hop positives; splitting
+    inside each genre holds the mix constant and guarantees ~500 Hip-Hop per
+    window -> one honest covariate-shift question.
     """
-    raise NotImplementedError("TODO(Justin): assign the within-genre listens split")
+    listens = tracks_small[("track", "listens")]
+    genre = tracks_small[("track", "genre_top")]
+
+    # each row's OWN genre median, broadcast back to every row:
+    genre_median = listens.groupby(genre, observed=True).transform("median")
+
+    # reference = the more-played half of each genre (listens >= its genre median), current = the rest
+    window = pd.Series(np.where(listens >= genre_median, "reference", "current"), index=tracks_small.index)
+    
+    return window
 
 
 # --------------------------------------------------------------------------- #
