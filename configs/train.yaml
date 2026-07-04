@@ -1,0 +1,28 @@
+# train.yaml — the full declaration of one training run.
+# Change this file, get a different reproducible run. Nothing that defines the
+# run should live in train.py.
+
+seed: 17
+
+data:
+  reference: data/prepared/reference.parquet   # train + test come from HERE (within-reference split)
+  current: data/prepared/current.parquet       # held-out drift tier; touched once, for the transfer metric
+  version: fma_small_seed17_prep_v1             # human label logged to MLflow; DVC md5 logged alongside
+
+model:
+  type: random_forest        # main model (its feature_importances_ feed the drift weighting)
+  params:                    # passed verbatim to the estimator constructor
+    n_estimators: 300
+    max_depth: null          # null -> None -> grow full trees
+    class_weight: balanced   # counter the ~12.5% positive rate
+    n_jobs: -1
+    random_state: 17
+
+eval:
+  f1_threshold: 0.45         # positive-class F1 floor; the CI train job exits non-zero below it.
+                             # Headroom under the observed RF F1 (~0.54) so a reseed does not flake red,
+                             # and far above the majority baseline (F1 0.0) so the gate means something.
+
+mlflow:
+  experiment: fma-hiphop-detector
+  tracking_uri: sqlite:///mlflow.db   # view with: mlflow ui --backend-store-uri sqlite:///mlflow.db

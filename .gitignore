@@ -33,6 +33,7 @@ htmlcov/
 # --- MLflow (local tracking store + artifacts) ---
 mlruns/
 mlartifacts/
+mlflow.db
 
 # --- Evidently reports (regenerable HTML) ---
 *.html
