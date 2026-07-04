@@ -1,0 +1,107 @@
+name: ci
+
+# The pipeline the project is graded on: regenerate the data from the pinned
+# source, run the tests, and only then train — with the train job failing when the
+# model's F1 falls below the configured threshold.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # 1. Rebuild the prepared data from the pinned SWITCH URL + seed (not `dvc pull`:
+  #    a CI runner cannot reach a local DVC remote). The 342 MiB metadata zip is
+  #    cached on its published SHA1 so it downloads at most once across runs. The
+  #    small prepared parquet is handed to the later jobs as an artifact, so the
+  #    heavy download + extract happens in exactly one job.
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Cache the FMA metadata zip
+        uses: actions/cache@v4
+        with:
+          path: data/raw/fma_metadata.zip
+          # Keyed on the published SHA1: the content is immutable, so a hit is
+          # always the exact bytes we verify against.
+          key: fma-metadata-zip-f0df49ffe5f2a6008d7dc83c6915b31835dfe733
+
+      - name: Download, verify, extract
+        run: python src/download_data.py
+
+      - name: Build the prepared reference/current frames
+        run: python src/prep_data.py
+
+      - name: Upload prepared data
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-data
+          path: data/prepared/
+          retention-days: 1
+
+  # 2. Tests, gated to run only after the data exists. Unit tests need no data;
+  #    the data- and model-validation tests consume the prepared artifact.
+  test:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download prepared data
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-data
+          path: data/prepared/
+
+      - name: Run tests
+        run: pytest tests/ -v
+
+  # 3. Train, gated on the tests passing (needs: test). train.py exits non-zero
+  #    when positive-class F1 is below the threshold in configs/train.yaml, so a
+  #    weak model fails this job. The gate is F1, never accuracy: an ~88% majority
+  #    baseline would make an accuracy gate meaningless under this imbalance.
+  train:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download prepared data
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-data
+          path: data/prepared/
+
+      - name: Train with the F1 exit-code gate
+        run: python src/train.py --config configs/train.yaml
