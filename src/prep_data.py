@@ -1,17 +1,13 @@
 """prep_data.py — build the modeling frame and the two drift windows.
 
 Pipeline (top to bottom):
-  1. load fma_small (tracks + features, aligned on track_id)          [plumbing]
-  2. build the binary Hip-Hop target                                  TODO(Justin)
-  3. select the 148 numeric (mean+std) features                       TODO(Justin)
-  4. engineer the 2 categoricals (license family + release-era)       TODO(Justin)
-  5. assemble X, dedupe on track_id, inject seeded NaNs               [plumbing]
-  6. assign the within-genre listens split (reference/current)        TODO(Justin)  <- gate
-  7. assert each window cleared its Hip-Hop floor, save artifacts     [plumbing]
-
-The four TODO(Justin) blocks are the decisions/concepts to retain; they raise
-NotImplementedError until filled, so a partial run tells you what's left. The
-plumbing around them is done.
+  1. load fma_small (tracks + features, aligned on track_id)
+  2. build the binary Hip-Hop target
+  3. select the 148 numeric (mean+std) features
+  4. engineer the 2 categoricals (license family + release-era)
+  5. assemble X, dedupe on track_id, inject seeded NaNs
+  6. assign the within-genre listens split (reference/current)
+  7. assert each window cleared its Hip-Hop floor, save artifacts
 
 Run from repo root with the venv active:
     python src/prep_data.py                 # uses data/raw -> data/prepared
@@ -29,19 +25,19 @@ import pandas as pd
 sys.path.insert(0, "src")
 import utils  # noqa: E402
 
-# --- Locked knobs (PLAN.md) ---
+# --- Knobs ---
 DEFAULT_RAW = Path("data/raw/fma_metadata")
 DEFAULT_OUT = Path("data/prepared")
 DEFAULT_SEED = 17
 HIPHOP_FLOOR = 450  # each drift window must carry ~500 Hip-Hop positives; floor with margin
-NAN_FRACTION = 0.02  # seeded missingness injected into 2 numeric cols (Phase 5 tests this rate)
+NAN_FRACTION = 0.02  # seeded missingness injected into 2 numeric cols (data tests assert this rate)
 
 # Engagement columns kept OUT of X (they leak the drift signal); listens drives the split only.
 ENGAGEMENT = [("track", "listens"), ("track", "favorites"), ("track", "interest")]
 
 
 # --------------------------------------------------------------------------- #
-# 1. Load fma_small                                                [plumbing]  #
+# 1. Load fma_small                                                            #
 # --------------------------------------------------------------------------- #
 def load_small(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load tracks + features, filter to fma_small, align on track_id.
@@ -62,14 +58,14 @@ def load_small(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 # --------------------------------------------------------------------------- #
-# 2. Target                                                    TODO(Justin)    #
+# 2. Target                                                                    #
 # --------------------------------------------------------------------------- #
 def build_target(tracks_small: pd.DataFrame) -> pd.Series:
     """Return the binary Hip-Hop target y as int 0/1, indexed by track_id.
 
-    Spec: y = 1 where the track's top genre is exactly "Hip-Hop", else 0.
+    y = 1 where the track's top genre is exactly "Hip-Hop", else 0.
     The genre label lives at column ("track", "genre_top"). Confirmed label
-    string is "Hip-Hop" (verify_data.py showed 1000/8000 = 12.5% positive).
+    string is "Hip-Hop" (1000/8000 = 12.5% positive in fma_small).
     Return an integer Series (not bool) so downstream checks see 0/1.
     """
 
@@ -79,14 +75,14 @@ def build_target(tracks_small: pd.DataFrame) -> pd.Series:
 
 
 # --------------------------------------------------------------------------- #
-# 3. Numeric features                                          TODO(Justin)    #
+# 3. Numeric features                                                          #
 # --------------------------------------------------------------------------- #
 def select_numeric_features(features_small: pd.DataFrame) -> pd.DataFrame:
     """Return the 148 numeric summary columns (mean + std across the 74 groups).
 
-    Spec: features_small has a 3-level column index (feature, statistics, number).
+    features_small has a 3-level column index (feature, statistics, number).
     Keep only columns whose 'statistics' level (level 1) is "mean" or "std".
-    verify_data.py confirmed that yields 148 columns. Flatten the column names
+    That yields 148 columns. Flatten the column names
     to readable strings so the modeling frame is easy to inspect and one-hot
     later (e.g. "mfcc_mean_01"). Keep the track_id index intact.
     """
@@ -104,7 +100,7 @@ def select_numeric_features(features_small: pd.DataFrame) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------- #
-# 4. Categorical features                                      TODO(Justin)    #
+# 4. Categorical features                                                      #
 # --------------------------------------------------------------------------- #
 def engineer_categoricals(tracks_small: pd.DataFrame) -> pd.DataFrame:
     """Return a DataFrame of the 2 engineered categoricals, indexed by track_id.
@@ -180,14 +176,14 @@ def engineer_categoricals(tracks_small: pd.DataFrame) -> pd.DataFrame:
     
 
 # --------------------------------------------------------------------------- #
-# 5. Assemble, dedupe, inject missingness                          [plumbing]  #
+# 5. Assemble, dedupe, inject missingness                                      #
 # --------------------------------------------------------------------------- #
 def inject_missing(X: pd.DataFrame, numeric_cols: list[str], seed: int,
                    fraction: float = NAN_FRACTION, n_cols: int = 2) -> pd.DataFrame:
     """Inject seeded NaNs into `n_cols` numeric columns at `fraction` rate.
 
-    Mechanism only (plumbing). Deterministic via a seeded Generator so the
-    missingness is reproducible and Phase 5 can assert the exact rate.
+    Deterministic via a seeded Generator so the missingness is reproducible
+    and the data-validation tests can assert the exact rate.
     """
     rng = np.random.default_rng(seed)
     X = X.copy()
@@ -199,8 +195,7 @@ def inject_missing(X: pd.DataFrame, numeric_cols: list[str], seed: int,
 
 
 # --------------------------------------------------------------------------- #
-# 6. Within-genre listens split                               TODO(Justin)     #
-#    THE GATE CONCEPT — save for last.                                          #
+# 6. Within-genre listens split                                                #
 def assign_within_genre_split(tracks_small: pd.DataFrame) -> pd.Series:
     """Return a Series of "reference"/"current" per track_id.
 
@@ -224,7 +219,7 @@ def assign_within_genre_split(tracks_small: pd.DataFrame) -> pd.Series:
 
 
 # --------------------------------------------------------------------------- #
-# 7. Save                                                          [plumbing]  #
+# 7. Save                                                                      #
 # --------------------------------------------------------------------------- #
 def save_artifacts(reference: pd.DataFrame, current: pd.DataFrame, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -243,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     tracks_small, features_small = load_small(args.raw)
     print(f"fma_small: {len(tracks_small)} tracks")
 
-    # 2-4. target + features (Justin's decisions)
+    # 2-4. target + features
     y = build_target(tracks_small)
     X_num = select_numeric_features(features_small)
     X_cat = engineer_categoricals(tracks_small)
@@ -255,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
     df = df[~df.index.duplicated(keep="first")]  # dedupe on track_id
     df = inject_missing(df, numeric_cols, seed=args.seed)
 
-    # 6. within-genre split (Justin's decision; the gate)
+    # 6. within-genre split
     window = assign_within_genre_split(tracks_small).reindex(df.index)
     reference = df[window == "reference"]
     current = df[window == "current"]

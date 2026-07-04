@@ -24,7 +24,7 @@ from pathlib import Path
 
 import requests
 
-# --- Pinned source (locked decision; do not float) ---
+# --- Pinned source (do not float) ---
 FMA_URL = "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip"
 FMA_SHA1 = "f0df49ffe5f2a6008d7dc83c6915b31835dfe733"
 DEFAULT_DEST = Path("data/raw")

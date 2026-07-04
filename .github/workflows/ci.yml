@@ -1,8 +1,7 @@
 name: ci
 
-# The pipeline the project is graded on: regenerate the data from the pinned
-# source, run the tests, and only then train — with the train job failing when the
-# model's F1 falls below the configured threshold.
+# Regenerate the data from the pinned source, run the tests, and only then train,
+# with the train job failing when the model's F1 falls below the configured threshold.
 on:
   push:
   pull_request:

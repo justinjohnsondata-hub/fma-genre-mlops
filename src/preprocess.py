@@ -4,19 +4,19 @@ Two jobs, both leak-safe by construction:
 
   1. split_reference(): ONE seeded, stratified train/test split taken WITHIN the
      reference window only. current.parquet is never touched here — it is the
-     held-out drift tier (Phase 7), so letting it near the split would poison the
-     "does F1 transfer to the obscure tier" question before we ever ask it.
+     held-out drift tier, so letting it near the split would poison the "does F1
+     transfer to the obscure tier" question before we ever ask it.
 
   2. build_preprocessor(): a ColumnTransformer that imputes+scales the 148 numeric
      columns and one-hot-encodes the 2 categoricals. Every learned quantity
      (median fill, mean/std, the category vocabulary) is a FITTED parameter. The
      transformer is fit on X_train ONLY; X_test is only ever .transform()ed with
-     those frozen train numbers. That is the leakage guard this phase exists to teach.
+     those frozen train numbers. That is the leakage guard this preprocessing enforces.
 
 Nothing here mutates its input frame: sklearn copies internally, and split_reference
-slices without writing back. Phase 2 tests assert that.
+slices without writing back; the unit tests assert that.
 
-Locked knobs (Justin, 2026-07-03): median imputation, 80/20 split, stratify on y.
+Knobs: median imputation, 80/20 split, stratify on y.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ TARGET = "target"
 CATEGORICAL_COLS = ["license_family", "release_era"]
 # numeric = every other column; derived from the frame so we never hardcode 148 names.
 
-# --- Locked knobs ---
+# --- Knobs ---
 DEFAULT_TEST_SIZE = 0.20
 DEFAULT_SEED = 17
 IMPUTE_STRATEGY = "median"
@@ -49,7 +49,7 @@ def validate_frame(df: pd.DataFrame) -> None:
     """Raise ValueError on invalid input BEFORE any sklearn call.
 
     A sklearn KeyError deep in a fit is a bad error surface for a caller; this is the
-    explicit 'raises on invalid input' guard (brief behavior). Two checks:
+    explicit 'raises on invalid input' guard. Two checks:
       - every required column (the 2 categoricals + target) is present, and
       - the numeric columns are actually numeric dtype (an object column here means
         the frame was built wrong and StandardScaler would blow up cryptically).

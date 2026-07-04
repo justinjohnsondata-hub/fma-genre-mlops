@@ -67,7 +67,7 @@ def test_missingness_bounded(window, request):
     """Missingness matches the seeded injection: exactly 2 numeric columns, bounded rate.
 
     Categoricals and the target must be complete; injected NaNs live only in the
-    numeric block at the rate Phase 1 wrote, so imputation has a known target.
+    numeric block at the rate prep_data.py wrote, so imputation has a known target.
     """
     df = request.getfixturevalue(window)
     numeric = pp.numeric_columns(df)

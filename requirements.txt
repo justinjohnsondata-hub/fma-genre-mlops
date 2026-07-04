@@ -20,15 +20,15 @@ scikit-learn==1.9.0
 
 # --- MLOps stack ---
 dvc==3.67.1
-mlflow==3.14.0         # 3.x (not 2.17): 2.x caps pyarrow<18, which has no 3.13 wheel. Note: 3.x model-logging API differs (Phase 3).
+mlflow==3.14.0         # 3.x (not 2.17): 2.x caps pyarrow<18, which has no 3.13 wheel
 
 # --- drift monitoring (pin-sensitive; do not float) ---
-evidently==0.7.21      # 0.7.x, NOT 0.4.x. New Report/Dataset API — Phase 7's monitor_drift.py must target this. Confirm before writing it.
+evidently==0.7.21      # 0.7.x Report/Dataset API (the 0.4.x metric API is different)
 
 # --- data fetch ---
 requests==2.34.2
 
-# --- config parsing (Phase 3 config-driven training; brief grades YAML at Step 5) ---
+# --- config parsing ---
 PyYAML==6.0.3
 
 # --- testing ---
