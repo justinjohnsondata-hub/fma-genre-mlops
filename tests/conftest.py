@@ -37,10 +37,20 @@ def tiny_frame() -> pd.DataFrame:
     return df
 
 
-@pytest.fixture
-def reference_df() -> pd.DataFrame:
-    """The real reference window. Skips if prep_data.py hasn't been run yet."""
-    path = Path(__file__).resolve().parent.parent / "data" / "prepared" / "reference.parquet"
+def _prepared(name: str) -> pd.DataFrame:
+    path = Path(__file__).resolve().parent.parent / "data" / "prepared" / name
     if not path.exists():
         pytest.skip("run `python src/prep_data.py` first to generate data/prepared/")
     return pd.read_parquet(path)
+
+
+@pytest.fixture
+def reference_df() -> pd.DataFrame:
+    """The real reference window. Skips if prep_data.py hasn't been run yet."""
+    return _prepared("reference.parquet")
+
+
+@pytest.fixture
+def current_df() -> pd.DataFrame:
+    """The real current (held-out drift) window. Skips if prep_data.py hasn't run."""
+    return _prepared("current.parquet")
