@@ -88,11 +88,12 @@ def dvc_md5(pointer: Path = Path("data/prepared.dvc")) -> str:
     return str(doc["outs"][0]["md5"])
 
 
-def train_and_log(cfg: Config) -> dict[str, float]:
+def train_and_log(cfg: Config, run_name: str | None = None) -> dict[str, float]:
     """Run one experiment end to end and log it. Returns the run's key metrics.
 
     Kept separate from main() so the sweep script can call it in a loop without
-    the process-exit gate.
+    the process-exit gate. run_name labels the MLflow run (defaults to the model
+    type) so a sweep of several RandomForest settings stays distinguishable.
     """
     reference = pd.read_parquet(cfg.reference_path)
     current = pd.read_parquet(cfg.current_path)
@@ -109,7 +110,7 @@ def train_and_log(cfg: Config) -> dict[str, float]:
     mlflow.set_tracking_uri(cfg.tracking_uri)
     mlflow.set_experiment(cfg.experiment)
 
-    with mlflow.start_run(run_name=cfg.model_type) as run:
+    with mlflow.start_run(run_name=run_name or cfg.model_type) as run:
         mlflow.log_params(
             {
                 "model_type": cfg.model_type,

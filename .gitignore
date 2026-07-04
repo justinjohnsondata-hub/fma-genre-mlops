@@ -35,8 +35,9 @@ mlruns/
 mlartifacts/
 mlflow.db
 
-# --- Evidently reports (regenerable HTML) ---
+# --- Evidently reports (regenerable HTML) + generated winner pointer ---
 *.html
+reports/winner.json
 
 # --- OS / editor cruft ---
 .DS_Store

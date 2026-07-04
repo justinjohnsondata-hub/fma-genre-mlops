@@ -1,0 +1,30 @@
+# sweep.yaml — the five runs, varied along one axis: the model.
+# Data, seed, MLflow target, and the F1 threshold are shared and come from `base`;
+# this file changes only the estimator and its hyperparameters, so the comparison
+# reads as "which model, holding everything else fixed" rather than a tangle of
+# confounded knobs.
+
+base: configs/train.yaml
+
+runs:
+  # three model families at sensible defaults
+  - name: logistic_regression
+    type: logistic_regression
+    params: {max_iter: 1000, class_weight: balanced, random_state: 17}
+
+  - name: random_forest_default
+    type: random_forest
+    params: {n_estimators: 300, max_depth: null, class_weight: balanced, n_jobs: -1, random_state: 17}
+
+  - name: gradient_boosting
+    type: gradient_boosting
+    params: {n_estimators: 300, random_state: 17}
+
+  # two more RandomForest settings — the one within-family axis (tree depth / count)
+  - name: random_forest_shallow
+    type: random_forest
+    params: {n_estimators: 300, max_depth: 8, class_weight: balanced, n_jobs: -1, random_state: 17}
+
+  - name: random_forest_deep
+    type: random_forest
+    params: {n_estimators: 600, max_depth: 24, class_weight: balanced, n_jobs: -1, random_state: 17}
