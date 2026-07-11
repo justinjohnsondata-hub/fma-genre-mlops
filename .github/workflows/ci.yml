@@ -4,7 +4,11 @@ name: ci
 # with the train job failing when the model's F1 falls below the configured threshold.
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
